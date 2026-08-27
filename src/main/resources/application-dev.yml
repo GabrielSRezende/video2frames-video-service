@@ -1,0 +1,7 @@
+spring:
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.fiapx.video2frames.video: DEBUG

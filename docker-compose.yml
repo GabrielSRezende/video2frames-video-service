@@ -1,0 +1,24 @@
+services:
+  videodb:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: videodb
+      POSTGRES_USER: videodb
+      POSTGRES_PASSWORD: videodb
+    ports:
+      - "5433:5432"
+    volumes:
+      - videodb-data:/var/lib/postgresql/data
+
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: s3,sqs
+      DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./infra/localstack-init:/etc/localstack/init/ready.d
+
+volumes:
+  videodb-data:
