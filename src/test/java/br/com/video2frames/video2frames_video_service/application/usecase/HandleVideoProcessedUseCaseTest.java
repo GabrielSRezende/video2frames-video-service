@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -34,13 +35,16 @@ class HandleVideoProcessedUseCaseTest {
     @Mock
     private VideoStatusHistoryRepository historyRepository;
 
+    @Mock
+    private CacheManager cacheManager;
+
     private HandleVideoProcessedUseCase useCase;
 
     private final UUID videoId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        useCase = new HandleVideoProcessedUseCase(videoRepository, historyRepository);
+        useCase = new HandleVideoProcessedUseCase(videoRepository, historyRepository, cacheManager);
     }
 
     @Test

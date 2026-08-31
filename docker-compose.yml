@@ -10,15 +10,33 @@ services:
     volumes:
       - videodb-data:/var/lib/postgresql/data
 
-  localstack:
-    image: localstack/localstack:3
-    environment:
-      SERVICES: s3,sqs
-      DEFAULT_REGION: us-east-1
+  redis:
+    image: redis:7-alpine
     ports:
-      - "4566:4566"
-    volumes:
-      - ./infra/localstack-init:/etc/localstack/init/ready.d
+      - "6379:6379"
+
+  video-service:
+    build: .
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://videodb:5432/videodb
+      DB_USER: videodb
+      DB_PASSWORD: videodb
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AWS_ENDPOINT_OVERRIDE: http://video2frames-localstack:4566
+      LOG_FORMAT: ${LOG_FORMAT:-}
+    depends_on:
+      - videodb
+      - redis
+    networks:
+      - default
+      - video2frames-net
 
 volumes:
   videodb-data:
+
+networks:
+  video2frames-net:
+    external: true

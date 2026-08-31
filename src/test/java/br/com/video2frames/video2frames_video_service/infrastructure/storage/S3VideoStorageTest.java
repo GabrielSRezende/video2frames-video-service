@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -84,5 +86,18 @@ class S3VideoStorageTest {
         verify(s3Client).getObject(captor.capture());
         assertThat(captor.getValue().bucket()).isEqualTo("video2frames-bucket");
         assertThat(captor.getValue().key()).isEqualTo("videos/gabriel/id-frames.zip");
+    }
+
+    @Test
+    void deleteOriginalVideo_removeOObjetoNoBucketConfiguradoComAKeyInformada() {
+        when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+                .thenReturn(DeleteObjectResponse.builder().build());
+
+        storage.deleteOriginalVideo("videos/gabriel/id.mp4");
+
+        ArgumentCaptor<DeleteObjectRequest> captor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(captor.capture());
+        assertThat(captor.getValue().bucket()).isEqualTo("video2frames-bucket");
+        assertThat(captor.getValue().key()).isEqualTo("videos/gabriel/id.mp4");
     }
 }

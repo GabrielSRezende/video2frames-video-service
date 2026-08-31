@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -16,6 +17,7 @@ import java.util.Optional;
  * Spring Security"). Só funciona se JWT_SECRET for o mesmo nos dois
  * serviços.
  */
+@Slf4j
 @Component
 public class JwtValidator {
 
@@ -34,6 +36,7 @@ public class JwtValidator {
                     .getPayload();
             return Optional.of(claims.getSubject());
         } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Falha ao validar JWT: {}", e.getMessage());
             return Optional.empty();
         }
     }

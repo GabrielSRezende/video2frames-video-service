@@ -1,6 +1,7 @@
 package br.com.video2frames.video2frames_video_service.application.usecase;
 
 import br.com.video2frames.video2frames_video_service.application.dto.VideoFailedEvent;
+import br.com.video2frames.video2frames_video_service.application.port.VideoStoragePort;
 import br.com.video2frames.video2frames_video_service.domain.exception.InvalidVideoStateTransitionException;
 import br.com.video2frames.video2frames_video_service.domain.exception.VideoNotFoundException;
 import br.com.video2frames.video2frames_video_service.domain.model.Video;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -34,13 +36,19 @@ class HandleVideoFailedUseCaseTest {
     @Mock
     private VideoStatusHistoryRepository historyRepository;
 
+    @Mock
+    private VideoStoragePort videoStoragePort;
+
+    @Mock
+    private CacheManager cacheManager;
+
     private HandleVideoFailedUseCase useCase;
 
     private final UUID videoId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        useCase = new HandleVideoFailedUseCase(videoRepository, historyRepository);
+        useCase = new HandleVideoFailedUseCase(videoRepository, historyRepository, videoStoragePort, cacheManager);
     }
 
     @Test
@@ -76,6 +84,24 @@ class HandleVideoFailedUseCaseTest {
         assertThat(historyCaptor.getValue().getVideoId()).isEqualTo(videoId);
         assertThat(historyCaptor.getValue().getStatus()).isEqualTo(VideoStatus.FAILED);
         assertThat(historyCaptor.getValue().getReason()).isEqualTo("codec não suportado pelo worker");
+
+        verify(videoStoragePort).deleteOriginalVideo("videos/gabriel/id.mp4");
+    }
+
+    @Test
+    void execute_quandoCompensacaoNoS3Falha_naoImpedeAAtualizacaoDeStatus() {
+        Video video = Video.upload("gabriel@video2frames.com", "meu-video.mp4", "videos/gabriel/id.mp4").withId(videoId);
+        when(videoRepository.findById(videoId)).thenReturn(Optional.of(video));
+        when(videoRepository.save(any(Video.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        org.mockito.Mockito.doThrow(new RuntimeException("S3 indisponível"))
+                .when(videoStoragePort).deleteOriginalVideo(any());
+
+        VideoFailedEvent event = new VideoFailedEvent(videoId, "codec não suportado pelo worker");
+
+        useCase.execute(event);
+
+        verify(videoRepository).save(any(Video.class));
+        verify(historyRepository).save(any(VideoStatusHistoryEntry.class));
     }
 
     @Test
