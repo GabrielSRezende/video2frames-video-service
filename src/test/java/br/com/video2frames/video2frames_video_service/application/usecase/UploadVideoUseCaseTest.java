@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -51,11 +52,15 @@ class UploadVideoUseCaseTest {
     @Mock
     private VideoProcessingQueuePort videoProcessingQueuePort;
 
+    @Mock
+    private CacheManager cacheManager;
+
     private UploadVideoUseCase useCase;
 
     @BeforeEach
     void setUp() {
-        useCase = new UploadVideoUseCase(videoRepository, historyRepository, videoStoragePort, videoProcessingQueuePort);
+        useCase = new UploadVideoUseCase(
+                videoRepository, historyRepository, videoStoragePort, videoProcessingQueuePort, cacheManager);
     }
 
     @Test

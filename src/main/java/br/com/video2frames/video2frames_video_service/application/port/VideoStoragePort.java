@@ -9,4 +9,6 @@ public interface VideoStoragePort {
                               InputStream content, long contentLength, String contentType);
 
     InputStream fetchZip(String zipKey);
+
+    void deleteOriginalVideo(String videoKey);
 }

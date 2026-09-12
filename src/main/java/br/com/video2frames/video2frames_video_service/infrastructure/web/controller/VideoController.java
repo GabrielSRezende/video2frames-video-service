@@ -6,6 +6,7 @@ import br.com.video2frames.video2frames_video_service.application.usecase.Downlo
 import br.com.video2frames.video2frames_video_service.application.usecase.ListUserVideosUseCase;
 import br.com.video2frames.video2frames_video_service.application.usecase.UploadVideoUseCase;
 import br.com.video2frames.video2frames_video_service.infrastructure.web.dto.VideoResponseDto;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,6 +30,7 @@ import java.util.UUID;
  * usuário vem do Authentication populado pelo JwtAuthenticationFilter, não
  * de um parâmetro que o cliente poderia forjar.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/videos")
 public class VideoController {
@@ -50,6 +52,7 @@ public class VideoController {
     public ResponseEntity<VideoResponseDto> upload(
             Authentication authentication, @RequestParam("file") MultipartFile file) {
 
+        log.info("Recebendo upload de {} enviado por {}", file.getOriginalFilename(), authentication.getName());
         try {
             var command = new UploadVideoCommand(
                     authentication.getName(),
@@ -61,6 +64,7 @@ public class VideoController {
             var result = uploadVideoUseCase.execute(command);
             return ResponseEntity.ok(VideoResponseDto.from(result));
         } catch (IOException e) {
+            log.warn("Falha ao ler o arquivo enviado por {}: {}", authentication.getName(), e.getMessage());
             throw new UncheckedIOException("Falha ao ler o arquivo enviado", e);
         }
     }
@@ -75,6 +79,7 @@ public class VideoController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<InputStreamResource> download(Authentication authentication, @PathVariable UUID id) {
+        log.info("Requisição de download do vídeo {} por {}", id, authentication.getName());
         VideoDownload download = downloadVideoZipUseCase.execute(authentication.getName(), id);
 
         return ResponseEntity.ok()
