@@ -25,11 +25,6 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * A camada web só traduz HTTP <-> comandos de aplicação; o e-mail do
- * usuário vem do Authentication populado pelo JwtAuthenticationFilter, não
- * de um parâmetro que o cliente poderia forjar.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/videos")

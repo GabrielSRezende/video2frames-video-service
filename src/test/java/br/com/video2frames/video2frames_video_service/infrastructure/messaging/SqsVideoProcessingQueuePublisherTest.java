@@ -45,7 +45,7 @@ class SqsVideoProcessingQueuePublisherTest {
                 .thenReturn(GetQueueUrlResponse.builder().queueUrl("http://localstack/video-uploaded-queue").build());
 
         UUID videoId = UUID.randomUUID();
-        VideoUploadedEvent event = new VideoUploadedEvent(videoId, "gabriel@video2frames.com", "videos/gabriel/id.mp4");
+        VideoUploadedEvent event = new VideoUploadedEvent(videoId, "gabriel@video2frames.com", "videos/gabriel/id.mp4", "meu-video.mp4");
 
         publisher.publishVideoUploaded(event);
 
@@ -59,5 +59,6 @@ class SqsVideoProcessingQueuePublisherTest {
         assertThat(message.videoId()).isEqualTo(videoId.toString());
         assertThat(message.ownerEmail()).isEqualTo("gabriel@video2frames.com");
         assertThat(message.videoKey()).isEqualTo("videos/gabriel/id.mp4");
+        assertThat(message.fileName()).isEqualTo("meu-video.mp4");
     }
 }

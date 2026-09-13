@@ -12,16 +12,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
-/**
- * Reage ao evento video-failed publicado pelo processing-service — o passo
- * T2 (processar vídeo) da saga coreografada falhou definitivamente.
- *
- * Além de atualizar o status (efeito principal), aplica a compensação do
- * passo T1 (armazenar o vídeo original no S3): já que o zip nunca será
- * gerado a partir desse arquivo, ele não tem mais utilidade e é removido.
- * Ver a documentação de arquitetura (video2frames-infra-ops) para o desenho
- * completo da saga, seus passos e compensações.
- */
 @Slf4j
 @Component
 public class HandleVideoFailedUseCase {
@@ -66,10 +56,7 @@ public class HandleVideoFailedUseCase {
         }
     }
 
-    /**
-     * Best-effort: a atualização de status acima já é o efeito crítico deste
-     * evento e não deve falhar por causa de um problema ao limpar o S3.
-     */
+    // Best-effort: não deve falhar o evento se a limpeza do S3 der erro.
     private void compensateUploadStep(Video failed) {
         try {
             videoStoragePort.deleteOriginalVideo(failed.getVideoKey());
