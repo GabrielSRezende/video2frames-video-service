@@ -16,16 +16,6 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import java.util.UUID;
 
-/**
- * Poller manual (long-polling) em vez de @SqsListener do Spring Cloud AWS —
- * evita depender de uma integração cuja compatibilidade com o Spring Boot
- * 4.x ainda não está madura, e mantém o adapter simples e explícito.
- *
- * Mensagens que falham não são deletadas: voltam a ficar visíveis na fila
- * após o "visibility timeout" e são tentadas de novo. Configure uma DLQ com
- * redrive policy no -infra para não reprocessar indefinidamente (ver
- * discussão de Saga/DLQ na documentação de arquitetura).
- */
 @Component
 public class VideoProcessedQueuePoller {
 

@@ -11,12 +11,6 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
-/**
- * Valida a assinatura do JWT localmente, sem chamar o auth-service — como
- * está no desenho de arquitetura ("VideoService valida localmente usando
- * Spring Security"). Só funciona se JWT_SECRET for o mesmo nos dois
- * serviços.
- */
 @Slf4j
 @Component
 public class JwtValidator {

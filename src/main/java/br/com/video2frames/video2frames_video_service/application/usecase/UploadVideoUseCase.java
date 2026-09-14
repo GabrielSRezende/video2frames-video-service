@@ -15,13 +15,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
-/**
- * Fluxo: persiste o vídeo (pra ter um id definitivo), envia o arquivo pro
- * storage, registra a key definitiva, publica o evento na fila de
- * processamento e só então marca como PROCESSING. Cada etapa é persistida
- * separadamente para que, se algo falhar no meio do caminho, o estado no
- * banco reflita exatamente até onde chegamos.
- */
 @Slf4j
 @Component
 public class UploadVideoUseCase {
@@ -65,7 +58,7 @@ public class UploadVideoUseCase {
         Video withKey = videoRepository.save(created.withVideoKey(videoKey));
 
         videoProcessingQueuePort.publishVideoUploaded(
-                new VideoUploadedEvent(withKey.getId(), withKey.getOwnerEmail(), videoKey));
+                new VideoUploadedEvent(withKey.getId(), withKey.getOwnerEmail(), videoKey, withKey.getFileName()));
 
         Video processing = videoRepository.save(withKey.markProcessing());
         historyRepository.save(VideoStatusHistoryEntry.record(processing.getId(), processing.getStatus(), null));

@@ -29,7 +29,7 @@ public class SqsVideoProcessingQueuePublisher implements VideoProcessingQueuePor
     @Override
     public void publishVideoUploaded(VideoUploadedEvent event) {
         var message = new VideoUploadedMessage(
-                event.videoId().toString(), event.ownerEmail(), event.videoKey());
+                event.videoId().toString(), event.ownerEmail(), event.videoKey(), event.fileName());
 
         sqsClient.sendMessage(SendMessageRequest.builder()
                 .queueUrl(queueUrls.resolve(queueName))

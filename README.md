@@ -4,7 +4,7 @@ Projeto Pós-Tech Fase 05 - Microserviço para gerenciamento dos vídeos/retorno
 
 ## Visão geral
 
-O `video2frames-video-service` é o serviço de borda do sistema **Video2Frames**: é ele quem recebe o upload dos vídeos, guarda o arquivo original, controla o ciclo de vida (status) de cada vídeo e disponibiliza o resultado final (zip de frames) para download. Ele não processa vídeo nenhum — quem extrai os frames via `ffmpeg` é o `processing-service`; este serviço apenas orquestra o fluxo via fila (SQS) e persiste o estado em Postgres.
+O `video2frames-video-service` é o serviço de borda do sistema **Video2Frames**. É ele quem recebe o upload dos vídeos, guarda o arquivo original, controla o ciclo de vida (status) de cada vídeo e disponibiliza o resultado final (zip de frames) para download. Ele não processa vídeo nenhum: quem extrai os frames via `ffmpeg` é o `processing-service`. Este serviço só orquestra o fluxo via fila (SQS) e persiste o estado em Postgres.
 
 Principais responsabilidades:
 
@@ -18,7 +18,7 @@ O serviço é construído em arquitetura hexagonal (portas e adaptadores), separ
 
 ## O papel deste serviço no pipeline Video2Frames
 
-O Video2Frames é composto por quatro microserviços independentes, cada um em seu próprio repositório, que se comunicam por HTTP (autenticação) e filas SQS (pipeline assíncrono de processamento):
+O Video2Frames é composto por quatro microserviços independentes, cada um em seu próprio repositório. Eles se comunicam por HTTP (autenticação) e filas SQS (pipeline assíncrono de processamento):
 
 ```mermaid
 flowchart LR
@@ -64,7 +64,7 @@ flowchart LR
     N -- e-mail de falha --> U
 ```
 
-Este repositório (`video-service`) **valida o JWT localmente** (assinatura HS256 com o mesmo segredo do `auth-service`) — ele não faz nenhuma chamada HTTP ao `auth-service` em tempo de requisição.
+Este repositório (`video-service`) valida o JWT localmente (assinatura HS256 com o mesmo segredo do `auth-service`). Ele não faz nenhuma chamada HTTP ao `auth-service` em tempo de requisição.
 
 ## Arquitetura interna (hexagonal)
 
@@ -120,14 +120,14 @@ flowchart TB
 
 Fluxos principais:
 
-- **Upload** (`UploadVideoUseCase`): valida o `content-type`, persiste o vídeo com status `UPLOADED`, envia o arquivo para o S3, publica o evento na fila `video-uploaded` e marca o vídeo como `PROCESSING` — cada etapa é persistida separadamente para que uma falha no meio do caminho deixe o banco refletindo exatamente até onde o fluxo chegou.
+- **Upload** (`UploadVideoUseCase`): valida o `content-type`, persiste o vídeo com status `UPLOADED`, envia o arquivo para o S3, publica o evento na fila `video-uploaded` e marca o vídeo como `PROCESSING`. Cada etapa é persistida separadamente, então se algo falhar no meio do caminho o banco reflete exatamente até onde o fluxo chegou.
 - **Atualização de status via fila**: `VideoProcessedQueuePoller`/`VideoFailedQueuePoller` fazem long-polling nas filas SQS e delegam para `HandleVideoProcessedUseCase`/`HandleVideoFailedUseCase`, que atualizam o status do vídeo (`COMPLETED`/`FAILED`) e gravam uma entrada no histórico de status.
 - **Listagem** (`ListUserVideosUseCase`): retorna os vídeos do usuário autenticado, mais recentes primeiro.
 - **Download** (`DownloadVideoZipUseCase`): valida posse do vídeo e se o status permite download (`COMPLETED` com zip disponível) antes de buscar o arquivo no S3.
 
 ## Endpoints
 
-Todos os endpoints abaixo exigem um header `Authorization: Bearer <jwt>` com um token emitido pelo `auth-service` (mesmo `JWT_SECRET` configurado nos dois serviços). O e-mail do usuário autenticado (subject do JWT) é usado para filtrar/autorizar o acesso aos vídeos — nunca é aceito como parâmetro do cliente.
+Todos os endpoints abaixo exigem um header `Authorization: Bearer <jwt>` com um token emitido pelo `auth-service` (mesmo `JWT_SECRET` configurado nos dois serviços). O e-mail do usuário autenticado (subject do JWT) é usado para filtrar/autorizar o acesso aos vídeos e nunca é aceito como parâmetro do cliente.
 
 | Método | Caminho                     | Descrição                                                                 |
 |--------|------------------------------|----------------------------------------------------------------------------|
@@ -135,7 +135,7 @@ Todos os endpoints abaixo exigem um header `Authorization: Bearer <jwt>` com um 
 | GET    | `/api/videos`                | Lista os vídeos do usuário autenticado, mais recentes primeiro.           |
 | GET    | `/api/videos/{id}/download`  | Faz o download do zip de frames de um vídeo `COMPLETED` pertencente ao usuário. |
 
-Além disso, `/actuator/**` é exposto publicamente (sem JWT) para health checks e métricas — ver seção [Monitoramento](#monitoramento--observabilidade).
+Além disso, `/actuator/**` é exposto publicamente (sem JWT) para health checks e métricas. Ver seção [Monitoramento](#monitoramento--observabilidade).
 
 ## Filas consumidas e publicadas
 
@@ -145,11 +145,11 @@ Além disso, `/actuator/**` é exposto publicamente (sem JWT) para health checks
 | `video-processed`      | Consome   | `SQS_VIDEO_PROCESSED_QUEUE`      | Consumido para marcar o vídeo como `COMPLETED` e registrar a key do zip e a quantidade de frames. |
 | `video-failed`         | Consome   | `SQS_VIDEO_FAILED_QUEUE`         | Consumido para marcar o vídeo como `FAILED` e registrar o motivo da falha. |
 
-Os pollers (`VideoProcessedQueuePoller`/`VideoFailedQueuePoller`) usam long-polling manual (não `@SqsListener`) e só deletam a mensagem da fila após o processamento ter sucesso — em caso de erro, a mensagem volta a ficar visível após o "visibility timeout" e é reprocessada. Depois de 3 tentativas sem sucesso, o próprio SQS move a mensagem para a DLQ correspondente (`<fila>-dlq`, provisionada em `video2frames-infra-ops`) — ver [documentação de arquitetura](../video2frames-infra-ops/docs/arquitetura.md#resiliência-das-filas-dead-letter-queue-dlq).
+Os pollers (`VideoProcessedQueuePoller`/`VideoFailedQueuePoller`) usam long-polling manual (não `@SqsListener`) e só deletam a mensagem da fila depois que o processamento tem sucesso. Em caso de erro, a mensagem volta a ficar visível após o "visibility timeout" e é reprocessada. Depois de 3 tentativas sem sucesso, o próprio SQS move a mensagem para a DLQ correspondente (`<fila>-dlq`, provisionada em `video2frames-infra-ops`). Mais detalhes na [documentação de arquitetura](../video2frames-infra-ops/docs/arquitetura.md#resiliência-das-filas-dead-letter-queue-dlq).
 
 ## Cache
 
-A listagem de vídeos por usuário (`GET /api/videos`) é cacheada no Redis (`userVideos::<email>`, TTL de 5 minutos), e invalidada explicitamente sempre que o status de algum vídeo daquele usuário muda (upload, sucesso, falha) — ver `CacheConfig` e a seção de cache no [documento de arquitetura](../video2frames-infra-ops/docs/arquitetura.md#cache) para os detalhes (por que JDK serialization em vez de JSON, etc.).
+A listagem de vídeos por usuário (`GET /api/videos`) é cacheada no Redis (`userVideos::<email>`, TTL de 5 minutos) e invalidada explicitamente sempre que o status de algum vídeo daquele usuário muda (upload, sucesso, falha). Detalhes em `CacheConfig` e na seção de cache do [documento de arquitetura](../video2frames-infra-ops/docs/arquitetura.md#cache) (inclusive o motivo de usar JDK serialization em vez de JSON).
 
 ## Stack técnica
 
@@ -157,8 +157,8 @@ A listagem de vídeos por usuário (`GET /api/videos`) é cacheada no Redis (`us
 - Spring Boot 4.1 (Web, Security, Data JPA, Validation, Actuator, Cache)
 - PostgreSQL + Flyway (migrations versionadas)
 - Redis (cache da listagem de vídeos por usuário)
-- JJWT — validação local de JWT (HS256)
-- AWS SDK v2 — S3 (armazenamento de vídeos/zips) e SQS (mensageria assíncrona)
+- JJWT, validação local de JWT (HS256)
+- AWS SDK v2, S3 (armazenamento de vídeos/zips) e SQS (mensageria assíncrona)
 - Lombok
 - Micrometer + Prometheus registry (métricas)
 - JUnit 5, Mockito, AssertJ (testes)
@@ -167,7 +167,7 @@ A listagem de vídeos por usuário (`GET /api/videos`) é cacheada no Redis (`us
 
 Pré-requisito: Docker.
 
-O LocalStack (S3 + SQS) usado por este serviço é **compartilhado** com `processing-service` e `notification-service` — ele mora no repositório irmão `video2frames-infra-ops`, que precisa subir primeiro:
+O LocalStack (S3 + SQS) usado por este serviço é compartilhado com `processing-service` e `notification-service`. Ele mora no repositório irmão `video2frames-infra-ops`, que precisa subir primeiro:
 
 ```bash
 cd ../video2frames-infra-ops
@@ -188,7 +188,7 @@ Isso sobe três containers interligados:
 
 Depois de subir, a API fica disponível em `http://localhost:8082/api/videos` e o health check em `http://localhost:8082/actuator/health`.
 
-> Se aparecer o erro `network video2frames-net declared as external, but could not be found`, é porque o `video2frames-infra-ops` ainda não foi iniciado — suba-o primeiro.
+> Se aparecer o erro `network video2frames-net declared as external, but could not be found`, é porque o `video2frames-infra-ops` ainda não foi iniciado. Suba-o primeiro.
 
 ## Variáveis de ambiente
 
@@ -200,7 +200,7 @@ Depois de subir, a API fica disponível em `http://localhost:8082/api/videos` e 
 | `REDIS_HOST`                    | `localhost`                                                  | Host do Redis usado para cache da listagem de vídeos. |
 | `REDIS_PORT`                    | `6379`                                                       | Porta do Redis. |
 | `SERVER_PORT`                   | `8082`                                                       | Porta HTTP do serviço. |
-| `JWT_SECRET`                    | valor de desenvolvimento embutido                            | Segredo HS256 usado para validar o JWT — **deve ser idêntico** ao configurado no `auth-service`. |
+| `JWT_SECRET`                    | valor de desenvolvimento embutido                            | Segredo HS256 usado para validar o JWT. Precisa ser idêntico ao configurado no `auth-service`. |
 | `AWS_REGION`                    | `us-east-1`                                                  | Região AWS usada pelos clients S3/SQS. |
 | `AWS_ENDPOINT_OVERRIDE`         | `http://localhost:4566`                                      | Endpoint customizado (LocalStack em dev; remover/ajustar em produção). |
 | `AWS_ACCESS_KEY_ID`             | `test`                                                       | Access key AWS (ou dummy do LocalStack). |
@@ -225,12 +225,12 @@ Cobertura atual (medida via JaCoCo, ver seção de [SonarQube](#qualidade-de-có
 
 ## Logging
 
-O serviço usa SLF4J (via Lombok `@Slf4j`) com o **logging estruturado nativo do Spring Boot 4** — sem nenhuma dependência extra. O comportamento é controlado pela variável `LOG_FORMAT`:
+O serviço usa SLF4J (via Lombok `@Slf4j`) com o logging estruturado nativo do Spring Boot 4, sem nenhuma dependência extra. O comportamento é controlado pela variável `LOG_FORMAT`:
 
 - **Em desenvolvimento** (`LOG_FORMAT` vazio): logs em texto plano legível no console.
-- **Em staging/produção** (`LOG_FORMAT=ecs`): logs em JSON no formato [ECS (Elastic Common Schema)](https://www.elastic.co/guide/en/ecs/current/index.html), prontos para serem coletados por CloudWatch Logs, ELK/Elasticsearch ou qualquer agregador que entenda JSON — sem precisar trocar nenhuma linha de código.
+- **Em staging/produção** (`LOG_FORMAT=ecs`): logs em JSON no formato [ECS (Elastic Common Schema)](https://www.elastic.co/guide/en/ecs/current/index.html), prontos para serem coletados por CloudWatch Logs, ELK/Elasticsearch ou qualquer agregador que entenda JSON, sem precisar trocar nenhuma linha de código.
 
-Eventos de negócio relevantes (upload concluído, mudança de status de um vídeo, download iniciado) são logados em `INFO`; falhas esperadas de domínio (vídeo não encontrado, acesso negado, formato não suportado, transição de estado inválida, JWT inválido) são logadas em `WARN` — sem nunca logar o conteúdo de arquivos, tokens JWT ou segredos.
+Eventos de negócio relevantes (upload concluído, mudança de status de um vídeo, download iniciado) são logados em `INFO`. Falhas esperadas de domínio (vídeo não encontrado, acesso negado, formato não suportado, transição de estado inválida, JWT inválido) são logadas em `WARN`, sem nunca logar o conteúdo de arquivos, tokens JWT ou segredos.
 
 ## Monitoramento / Observabilidade
 
@@ -240,11 +240,11 @@ O Spring Boot Actuator expõe, sem autenticação, em `/actuator/**`:
 - `GET /actuator/prometheus` — métricas no formato Prometheus (via Micrometer), incluindo métricas HTTP, JVM, pool de conexões, etc.
 - `GET /actuator/info` / `GET /actuator/metrics` — informações gerais e métricas detalhadas.
 
-Para visualizar essas métricas em dashboards, use o stack compartilhado do repositório **`video2frames-infra-ops`** (Prometheus + Grafana), que faz scrape de `/actuator/prometheus` dos quatro microserviços do Video2Frames (via `host.docker.internal`) e já vem com um dashboard pré-provisionado, "Video2Frames - Overview".
+Para visualizar essas métricas em dashboards, use o stack compartilhado do repositório `video2frames-infra-ops` (Prometheus + Grafana). Ele faz scrape de `/actuator/prometheus` dos quatro microserviços do Video2Frames (via `host.docker.internal`) e já vem com um dashboard pré-provisionado, "Video2Frames - Overview".
 
 ## Qualidade de código (SonarQube)
 
-Uma análise local do SonarQube foi executada sobre esta base de código, com **Quality Gate: Passed**:
+Uma análise local do SonarQube foi executada sobre esta base de código, com Quality Gate: Passed.
 
 | Métrica              | Valor |
 |----------------------|-------|
