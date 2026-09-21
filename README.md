@@ -52,16 +52,16 @@ flowchart LR
     V -- arquivo original --> S3
     V -- "3. publica" --> Q1[["SQS: video-uploaded"]]
     Q1 -- "4. consome" --> P
-    P -- lê vídeo / grava zip --> S3
+    P -- "lê vídeo / grava zip" --> S3
     P -- "5a. sucesso" --> Q2[["SQS: video-processed"]]
     P -- "5a. sucesso" --> Q2N[["SQS: video-processed-notif"]]
     P -- "5b. falha" --> Q3[["SQS: video-failed"]]
     P -- "5b. falha" --> Q3N[["SQS: video-failed-notif"]]
     Q2 -- "6. consome (atualiza COMPLETED)" --> V
     Q3 -- "6. consome (atualiza FAILED)" --> V
-    Q3N -- consome --> N
-    Q2N -- consome (apenas ack, sem e-mail hoje) --> N
-    N -- e-mail de falha --> U
+    Q3N -- "consome" --> N
+    Q2N -- "consome (apenas ack, sem e-mail hoje)" --> N
+    N -- "e-mail de falha" --> U
 ```
 
 Este repositório (`video-service`) valida o JWT localmente (assinatura HS256 com o mesmo segredo do `auth-service`). Ele não faz nenhuma chamada HTTP ao `auth-service` em tempo de requisição.
@@ -78,8 +78,8 @@ flowchart TB
         POLLP[VideoProcessedQueuePoller]
         POLLF[VideoFailedQueuePoller]
         S3ST[S3VideoStorage]
-        REPO[VideoRepositoryAdapter /\nVideoStatusHistoryRepositoryAdapter]
-        JPA[(VideoJpaRepository /\nVideoStatusHistoryJpaRepository)]
+        REPO["VideoRepositoryAdapter /<br/>VideoStatusHistoryRepositoryAdapter"]
+        JPA[("VideoJpaRepository /<br/>VideoStatusHistoryJpaRepository")]
     end
 
     subgraph App["application"]
@@ -93,9 +93,9 @@ flowchart TB
     end
 
     subgraph Domain["domain"]
-        MODEL[Video / VideoStatus /\nVideoStatusHistoryEntry]
-        REPOI[[VideoRepository /\nVideoStatusHistoryRepository]]
-        EXC[Exceções de domínio:\nNotFound, AccessDenied,\nInvalidStateTransition,\nUnsupportedFormat]
+        MODEL["Video / VideoStatus /<br/>VideoStatusHistoryEntry"]
+        REPOI[["VideoRepository /<br/>VideoStatusHistoryRepository"]]
+        EXC["Exceções de domínio:<br/>NotFound, AccessDenied,<br/>InvalidStateTransition,<br/>UnsupportedFormat"]
     end
 
     WEB -->|autenticado por| FILTER
@@ -174,7 +174,7 @@ cd ../video2frames-infra-ops
 docker compose up -d
 ```
 
-Depois, neste repositório:
+Depois, neste repositório: 
 
 ```bash
 docker compose up -d
