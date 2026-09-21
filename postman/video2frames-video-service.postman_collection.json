@@ -1,0 +1,203 @@
+{
+  "info": {
+    "name": "video2frames-video-service",
+    "description": "Requisições do video-service (porta 8082), que exige token JWT emitido pelo auth-service (porta 8081). Suba o ambiente antes (video2frames-infra-ops, Modo 2).\n\nOrdem sugerida: pasta Autenticação (registrar e fazer login), depois Enviar vídeo, Listar meus vídeos e Baixar ZIP. O login guarda o token nas variáveis da coleção, e as demais requisições usam esse token.\n\nCenário de erro: envie um arquivo cujo nome contenha video_erro (por exemplo Video_Erro.mp4). O processamento falha de propósito, o vídeo passa para FAILED, o arquivo enviado é removido do S3 (compensação da saga) e o e-mail de erro é enviado para o e-mail do usuário. Use um e-mail real na variável email se quiser receber a mensagem. O conteúdo do arquivo pode ser qualquer vídeo, só o nome importa.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "authUrl", "value": "http://localhost:8081" },
+    { "key": "videoUrl", "value": "http://localhost:8082" },
+    { "key": "email", "value": "professor@exemplo.com" },
+    { "key": "password", "value": "Senha@123" },
+    { "key": "accessToken", "value": "" },
+    { "key": "videoId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Autenticação (auth-service)",
+      "item": [
+        {
+          "name": "1. Registrar usuário",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authUrl}}/api/auth/register",
+              "host": ["{{authUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Cria o usuário. Retorna 201, ou 409 se o e-mail já estiver cadastrado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Usuário criado (201) ou e-mail já cadastrado (409)', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{authUrl}}/api/auth/login",
+              "host": ["{{authUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Autentica e salva o accessToken na variável da coleção. As requisições de vídeo usam esse token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login retorna 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('accessToken', pm.response.json().accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vídeos",
+      "item": [
+        {
+          "name": "Enviar vídeo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": [] }]
+            },
+            "url": {
+              "raw": "{{videoUrl}}/api/videos",
+              "host": ["{{videoUrl}}"],
+              "path": ["api", "videos"]
+            },
+            "description": "Envia um vídeo (multipart, campo file). Clique em Select File no campo file e escolha o vídeo. O processamento é assíncrono: a resposta já traz o vídeo com status PROCESSING. Para testar o cenário de erro, use um arquivo com video_erro no nome."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Upload aceito (200)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('videoId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar meus vídeos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{videoUrl}}/api/videos",
+              "host": ["{{videoUrl}}"],
+              "path": ["api", "videos"]
+            },
+            "description": "Lista os vídeos do usuário logado, com status (PROCESSING, COMPLETED ou FAILED), quantidade de frames e motivo do erro. Guarda na variável videoId o primeiro vídeo COMPLETED da lista (ou o primeiro, se nenhum estiver concluído)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Lista retornada (200)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const videos = pm.response.json();",
+                  "if (Array.isArray(videos) && videos.length > 0) {",
+                  "  const alvo = videos.find(function (v) { return v.status === 'COMPLETED'; }) || videos[0];",
+                  "  pm.collectionVariables.set('videoId', alvo.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Baixar ZIP dos frames",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{videoUrl}}/api/videos/{{videoId}}/download",
+              "host": ["{{videoUrl}}"],
+              "path": ["api", "videos", "{{videoId}}", "download"]
+            },
+            "description": "Baixa o ZIP com os frames do vídeo indicado em videoId. Só funciona para vídeos COMPLETED do próprio usuário. Use Send and Download para salvar o arquivo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health check",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{videoUrl}}/actuator/health",
+          "host": ["{{videoUrl}}"],
+          "path": ["actuator", "health"]
+        },
+        "description": "Estado do serviço. Deve retornar status UP."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Serviço no ar', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().status).to.eql('UP');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

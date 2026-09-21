@@ -213,6 +213,12 @@ Depois de subir, a API fica disponível em `http://localhost:8082/api/videos` e 
 | `LOG_LEVEL_ROOT`                | `INFO`                                                       | Nível de log raiz (bibliotecas/frameworks). |
 | `LOG_FORMAT`                    | vazio (texto plano no console)                               | Definir como `ecs` ativa logging estruturado em JSON (ver seção [Logging](#logging)). |
 
+## Collection do Postman
+
+A pasta `postman/` tem uma collection pronta para importar (Postman > Import > `postman/video2frames-video-service.postman_collection.json`). Ela traz cadastro e login (para obter o token do `auth-service`), envio de vídeo, listagem, download do ZIP e health check. O login salva o token nas variáveis da coleção e as demais requisições o usam automaticamente.
+
+Para demonstrar o cenário de erro, envie um arquivo com `video_erro` no nome (por exemplo `Video_Erro.mp4`): o processamento falha de propósito, o vídeo vai para `FAILED` e o e-mail de erro é enviado ao usuário.
+
 ## Testes
 
 O projeto tem 85 testes unitários (JUnit 5 + Mockito + AssertJ, com nomenclatura em português no padrão `metodo_quandoX_resultado`), cobrindo domínio, casos de uso, adapters de persistência/mensageria/storage, segurança e o controller web.
