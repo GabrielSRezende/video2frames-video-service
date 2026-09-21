@@ -52,16 +52,16 @@ flowchart LR
     V -- arquivo original --> S3
     V -- "3. publica" --> Q1[["SQS: video-uploaded"]]
     Q1 -- "4. consome" --> P
-    P -- lê vídeo / grava zip --> S3
+    P -- "lê vídeo / grava zip" --> S3
     P -- "5a. sucesso" --> Q2[["SQS: video-processed"]]
     P -- "5a. sucesso" --> Q2N[["SQS: video-processed-notif"]]
     P -- "5b. falha" --> Q3[["SQS: video-failed"]]
     P -- "5b. falha" --> Q3N[["SQS: video-failed-notif"]]
     Q2 -- "6. consome (atualiza COMPLETED)" --> V
     Q3 -- "6. consome (atualiza FAILED)" --> V
-    Q3N -- consome --> N
-    Q2N -- consome (apenas ack, sem e-mail hoje) --> N
-    N -- e-mail de falha --> U
+    Q3N -- "consome" --> N
+    Q2N -- "consome (apenas ack, sem e-mail hoje)" --> N
+    N -- "e-mail de falha" --> U
 ```
 
 Este repositório (`video-service`) valida o JWT localmente (assinatura HS256 com o mesmo segredo do `auth-service`). Ele não faz nenhuma chamada HTTP ao `auth-service` em tempo de requisição.
@@ -78,8 +78,8 @@ flowchart TB
         POLLP[VideoProcessedQueuePoller]
         POLLF[VideoFailedQueuePoller]
         S3ST[S3VideoStorage]
-        REPO[VideoRepositoryAdapter /\nVideoStatusHistoryRepositoryAdapter]
-        JPA[(VideoJpaRepository /\nVideoStatusHistoryJpaRepository)]
+        REPO["VideoRepositoryAdapter /<br/>VideoStatusHistoryRepositoryAdapter"]
+        JPA[("VideoJpaRepository /<br/>VideoStatusHistoryJpaRepository")]
     end
 
     subgraph App["application"]
@@ -93,9 +93,9 @@ flowchart TB
     end
 
     subgraph Domain["domain"]
-        MODEL[Video / VideoStatus /\nVideoStatusHistoryEntry]
-        REPOI[[VideoRepository /\nVideoStatusHistoryRepository]]
-        EXC[Exceções de domínio:\nNotFound, AccessDenied,\nInvalidStateTransition,\nUnsupportedFormat]
+        MODEL["Video / VideoStatus /<br/>VideoStatusHistoryEntry"]
+        REPOI[["VideoRepository /<br/>VideoStatusHistoryRepository"]]
+        EXC["Exceções de domínio:<br/>NotFound, AccessDenied,<br/>InvalidStateTransition,<br/>UnsupportedFormat"]
     end
 
     WEB -->|autenticado por| FILTER
@@ -174,7 +174,7 @@ cd ../video2frames-infra-ops
 docker compose up -d
 ```
 
-Depois, neste repositório:
+Depois, neste repositório: 
 
 ```bash
 docker compose up -d
@@ -212,6 +212,12 @@ Depois de subir, a API fica disponível em `http://localhost:8082/api/videos` e 
 | `LOG_LEVEL`                     | `INFO`                                                       | Nível de log do pacote `br.com.video2frames`. |
 | `LOG_LEVEL_ROOT`                | `INFO`                                                       | Nível de log raiz (bibliotecas/frameworks). |
 | `LOG_FORMAT`                    | vazio (texto plano no console)                               | Definir como `ecs` ativa logging estruturado em JSON (ver seção [Logging](#logging)). |
+
+## Collection do Postman
+
+A pasta `postman/` tem uma collection pronta para importar (Postman > Import > `postman/video2frames-video-service.postman_collection.json`). Ela traz cadastro e login (para obter o token do `auth-service`), envio de vídeo, listagem, download do ZIP e health check. O login salva o token nas variáveis da coleção e as demais requisições o usam automaticamente.
+
+Para demonstrar o cenário de erro, envie um arquivo com `video_erro` no nome (por exemplo `Video_Erro.mp4`): o processamento falha de propósito, o vídeo vai para `FAILED` e o e-mail de erro é enviado ao usuário.
 
 ## Testes
 
